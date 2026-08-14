@@ -28,7 +28,11 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
+import { AuthShell } from '@/components/brand/app-logo';
+import { APP_NAME } from '@/lib/brand';
+
 export const metadata: Metadata = {
+  title: `Join — ${APP_NAME}`,
   referrer: 'no-referrer',
   // Belt-and-braces against an invite URL ending up in search
   // results if a join page is ever crawled.
@@ -36,9 +40,5 @@ export const metadata: Metadata = {
 };
 
 export default function JoinLayout({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      {children}
-    </div>
-  );
+  return <AuthShell>{children}</AuthShell>;
 }
