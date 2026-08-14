@@ -10,6 +10,15 @@ export interface ProviderArgs {
   systemPrompt: string
   messages: ChatMessage[]
   timeoutMs: number
+  /** Override the Chat Completions origin (OpenAI-compatible hosts). */
+  baseUrl?: string
+  /** Extra request headers (OpenRouter referer, etc.). */
+  extraHeaders?: Record<string, string>
+  /**
+   * Use `max_tokens` instead of OpenAI's `max_completion_tokens`.
+   * Groq / OpenRouter / most compatible hosts still expect the former.
+   */
+  compat?: boolean
 }
 
 /**

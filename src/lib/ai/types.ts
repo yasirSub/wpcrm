@@ -6,7 +6,12 @@
 // whether the account is on OpenAI or Anthropic.
 // ============================================================
 
-export type AiProvider = 'openai' | 'anthropic'
+export type AiProvider =
+  | 'openai'
+  | 'anthropic'
+  | 'groq'
+  | 'openrouter'
+  | 'custom'
 
 /**
  * Account AI setup, decrypted and ready to use. Produced by
@@ -17,6 +22,8 @@ export interface AiConfig {
   provider: AiProvider
   model: string
   apiKey: string
+  /** Chat Completions base for `custom` (e.g. `https://openrouter.ai/api/v1`). */
+  baseUrl: string | null
   systemPrompt: string | null
   isActive: boolean
   autoReplyEnabled: boolean

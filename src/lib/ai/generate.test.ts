@@ -13,6 +13,7 @@ function config(overrides: Partial<AiConfig> = {}): AiConfig {
     autoReplyMaxPerConversation: 3,
     handoffAgentId: null,
     embeddingsApiKey: null,
+    baseUrl: null,
     ...overrides,
   }
 }
@@ -190,5 +191,58 @@ describe('generateReply — Anthropic', () => {
     const body = JSON.parse(fetchMock.mock.calls[0][1].body)
     expect(body.messages[0].role).toBe('user')
     expect(body.messages).toHaveLength(1)
+  })
+})
+
+describe('generateReply — OpenAI-compatible hosts', () => {
+  it('posts to a custom base URL with max_tokens', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      okResponse({
+        choices: [{ message: { content: 'ok' } }],
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await generateReply({
+      config: config({
+        provider: 'custom',
+        baseUrl: 'https://openrouter.ai/api/v1',
+      }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Hi' }],
+    })
+
+    const [url, opts] = fetchMock.mock.calls[0]
+    expect(url).toBe('https://openrouter.ai/api/v1/chat/completions')
+    const body = JSON.parse(opts.body)
+    expect(body.max_tokens).toBe(1024)
+    expect(body.max_completion_tokens).toBeUndefined()
+  })
+
+  it('uses the Groq preset URL', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(okResponse({ choices: [{ message: { content: 'ok' } }] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await generateReply({
+      config: config({ provider: 'groq' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Hi' }],
+    })
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://api.groq.com/openai/v1/chat/completions',
+    )
+  })
+
+  it('rejects custom without a base URL', async () => {
+    await expect(
+      generateReply({
+        config: config({ provider: 'custom', baseUrl: null }),
+        systemPrompt: 'sys',
+        messages: [{ role: 'user', content: 'Hi' }],
+      }),
+    ).rejects.toMatchObject({ code: 'missing_base_url' })
   })
 })

@@ -4,6 +4,7 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { validateAiCredentials } from '@/lib/ai/validate'
 import { AiError, type AiProvider } from '@/lib/ai/types'
+import { isAiProvider, normalizeProviderBaseUrl } from '@/lib/ai/providers/catalog'
 
 /**
  * POST /api/ai/test  (admin+)
@@ -27,15 +28,31 @@ export async function POST(request: Request) {
     }
 
     const provider = body.provider as AiProvider
-    if (provider !== 'openai' && provider !== 'anthropic') {
+    if (!isAiProvider(provider)) {
       return NextResponse.json(
-        { error: 'provider must be "openai" or "anthropic"' },
+        { error: 'provider is not supported' },
         { status: 400 },
       )
     }
     const model = typeof body.model === 'string' ? body.model.trim() : ''
     if (!model) {
       return NextResponse.json({ error: 'model is required' }, { status: 400 })
+    }
+
+    let baseUrl: string | null = null
+    if (provider === 'custom') {
+      const rawBase =
+        typeof body.base_url === 'string' ? body.base_url.trim() : ''
+      baseUrl = rawBase ? normalizeProviderBaseUrl(rawBase) : null
+      if (!baseUrl) {
+        return NextResponse.json(
+          {
+            error:
+              'base_url must be an http(s) URL, e.g. https://openrouter.ai/api/v1',
+          },
+          { status: 400 },
+        )
+      }
     }
 
     const rawKey = typeof body.api_key === 'string' ? body.api_key.trim() : ''
@@ -67,6 +84,7 @@ export async function POST(request: Request) {
         provider,
         model,
         apiKey: apiKeyPlain,
+        baseUrl,
         systemPrompt: null,
         isActive: true,
         autoReplyEnabled: false,

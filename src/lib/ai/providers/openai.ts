@@ -7,8 +7,9 @@ import {
   toNetworkError,
   type ProviderArgs,
 } from './shared'
+import { chatCompletionsEndpoint } from './catalog'
 
-const OPENAI_URL = 'https://api.openai.com/v1/chat/completions'
+const OPENAI_URL = chatCompletionsEndpoint('https://api.openai.com/v1')
 
 interface OpenAiResponse {
   choices?: { message?: { content?: string } }[]
@@ -25,15 +26,21 @@ interface OpenAiResponse {
  * in `generateReply`).
  */
 export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult> {
-  const { apiKey, model, systemPrompt, messages, timeoutMs } = args
+  const { apiKey, model, systemPrompt, messages, timeoutMs, extraHeaders, compat } =
+    args
+  const url = args.baseUrl
+    ? chatCompletionsEndpoint(args.baseUrl)
+    : OPENAI_URL
+  const tokenField = compat ? 'max_tokens' : 'max_completion_tokens'
 
   let res: Response
   try {
-    res = await fetch(OPENAI_URL, {
+    res = await fetch(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        ...extraHeaders,
       },
       body: JSON.stringify({
         model,
@@ -41,7 +48,7 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
           { role: 'system', content: systemPrompt },
           ...mergeConsecutive(messages),
         ],
-        max_completion_tokens: MAX_OUTPUT_TOKENS,
+        [tokenField]: MAX_OUTPUT_TOKENS,
       }),
       signal: AbortSignal.timeout(timeoutMs),
     })
@@ -50,13 +57,13 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
   }
 
   if (!res.ok) {
-    throw await providerHttpError('OpenAI', res)
+    throw await providerHttpError(compat ? 'AI provider' : 'OpenAI', res)
   }
 
   const data = (await res.json().catch(() => null)) as OpenAiResponse | null
   const text = data?.choices?.[0]?.message?.content
   if (!text || typeof text !== 'string' || !text.trim()) {
-    throw new AiError('OpenAI returned an empty response.', {
+    throw new AiError('The AI provider returned an empty response.', {
       code: 'empty_response',
     })
   }

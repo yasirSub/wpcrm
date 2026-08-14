@@ -41,11 +41,17 @@ const HANDOFF_QUEUE = '__queue__';
 const PROVIDER_LABEL: Record<AiProvider, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic (Claude)',
+  groq: 'Groq',
+  openrouter: 'OpenRouter',
+  custom: 'Custom (OpenAI-compatible)',
 };
 
 const KEY_PLACEHOLDER: Record<AiProvider, string> = {
   openai: 'sk-...',
   anthropic: 'sk-ant-...',
+  groq: 'gsk-...',
+  openrouter: 'sk-or-...',
+  custom: 'sk-... or your provider key',
 };
 
 export function AiConfig() {
@@ -61,6 +67,7 @@ export function AiConfig() {
   const [configured, setConfigured] = useState(false);
   const [provider, setProvider] = useState<AiProvider>('openai');
   const [model, setModel] = useState(AI_PROVIDER_DEFAULT_MODEL.openai);
+  const [baseUrl, setBaseUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [keyEdited, setKeyEdited] = useState(false);
   const [showKey, setShowKey] = useState(false);
@@ -95,6 +102,7 @@ export function AiConfig() {
         setConfigured(true);
         setProvider(data.provider);
         setModel(data.model);
+        setBaseUrl(data.base_url ?? '');
         setSystemPrompt(data.system_prompt ?? '');
         setIsActive(data.is_active);
         setAutoReplyEnabled(data.auto_reply_enabled);
@@ -128,10 +136,8 @@ export function AiConfig() {
   // typed a custom model.
   const handleProviderChange = (next: AiProvider) => {
     setProvider(next);
-    const isDefaultModel =
-      model === AI_PROVIDER_DEFAULT_MODEL.openai ||
-      model === AI_PROVIDER_DEFAULT_MODEL.anthropic ||
-      model.trim() === '';
+    const defaults = Object.values(AI_PROVIDER_DEFAULT_MODEL);
+    const isDefaultModel = defaults.includes(model) || model.trim() === '';
     if (isDefaultModel) setModel(AI_PROVIDER_DEFAULT_MODEL[next]);
   };
 
@@ -145,6 +151,7 @@ export function AiConfig() {
     provider,
     model: model.trim(),
     api_key: keyPayload(),
+    base_url: provider === 'custom' ? baseUrl.trim() : null,
     embeddings_api_key: embeddingsKeyPayload(),
     system_prompt: systemPrompt.trim() || null,
     is_active: isActive,
@@ -154,6 +161,10 @@ export function AiConfig() {
   });
 
   const handleTest = async () => {
+    if (provider === 'custom' && !baseUrl.trim()) {
+      toast.error(t('missingBaseUrl'));
+      return;
+    }
     setTesting(true);
     try {
       const res = await fetch('/api/ai/test', {
@@ -163,6 +174,7 @@ export function AiConfig() {
           provider,
           model: model.trim(),
           api_key: keyPayload(),
+          base_url: provider === 'custom' ? baseUrl.trim() : undefined,
         }),
       });
       const data = await res.json();
@@ -178,6 +190,10 @@ export function AiConfig() {
   const handleSave = async () => {
     if (!model.trim()) {
       toast.error(t('missingModel'));
+      return;
+    }
+    if (provider === 'custom' && !baseUrl.trim()) {
+      toast.error(t('missingBaseUrl'));
       return;
     }
     if (!configured && !keyEdited) {
@@ -219,6 +235,7 @@ export function AiConfig() {
         setAutoReplyEnabled(false);
         setSystemPrompt('');
         setHandoffAgentId('');
+        setBaseUrl('');
       } else {
         const data = await res.json();
         toast.error(data.error ?? t('removeFailed'));
@@ -281,6 +298,11 @@ export function AiConfig() {
                     <SelectItem value="anthropic">
                       {PROVIDER_LABEL.anthropic}
                     </SelectItem>
+                    <SelectItem value="groq">{PROVIDER_LABEL.groq}</SelectItem>
+                    <SelectItem value="openrouter">
+                      {PROVIDER_LABEL.openrouter}
+                    </SelectItem>
+                    <SelectItem value="custom">{PROVIDER_LABEL.custom}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -296,6 +318,21 @@ export function AiConfig() {
                 />
               </div>
             </div>
+
+            {provider === 'custom' && (
+              <div className="space-y-2">
+                <Label htmlFor="ai-base-url">{t('baseUrl')}</Label>
+                <Input
+                  id="ai-base-url"
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder={t('baseUrlPlaceholder')}
+                  disabled={disabled}
+                  autoComplete="off"
+                />
+                <p className="text-xs text-muted-foreground">{t('baseUrlHint')}</p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="ai-key">{t('apiKey')}</Label>

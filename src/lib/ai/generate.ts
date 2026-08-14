@@ -8,6 +8,8 @@ import {
 import { HANDOFF_SENTINEL, aiRequestTimeoutMs } from './defaults'
 import { generateOpenAi } from './providers/openai'
 import { generateAnthropic } from './providers/anthropic'
+import { resolveChatBaseUrl, usesOpenAiCompat } from './providers/catalog'
+import { APP_NAME } from '@/lib/brand'
 
 export interface GenerateArgs {
   config: AiConfig
@@ -35,12 +37,36 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
 
   let result: { text: string; usage: AiUsage | null }
   switch (config.provider) {
-    case 'openai':
-      result = await generateOpenAi(providerArgs)
-      break
     case 'anthropic':
       result = await generateAnthropic(providerArgs)
       break
+    case 'openai':
+    case 'groq':
+    case 'openrouter':
+    case 'custom': {
+      const baseUrl = resolveChatBaseUrl(config.provider, config.baseUrl)
+      if (!baseUrl) {
+        throw new AiError('A base URL is required for this provider.', {
+          code: 'missing_base_url',
+          status: 400,
+        })
+      }
+      const extraHeaders =
+        config.provider === 'openrouter'
+          ? {
+              'HTTP-Referer':
+                process.env.NEXT_PUBLIC_SITE_URL || 'https://wacrm.local',
+              'X-Title': APP_NAME,
+            }
+          : undefined
+      result = await generateOpenAi({
+        ...providerArgs,
+        baseUrl,
+        extraHeaders,
+        compat: usesOpenAiCompat(config.provider) && config.provider !== 'openai',
+      })
+      break
+    }
     default:
       throw new AiError(`Unsupported AI provider: ${config.provider}`, {
         code: 'unsupported_provider',
