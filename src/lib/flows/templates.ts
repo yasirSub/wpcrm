@@ -400,7 +400,7 @@ const REALTORONE_MENU: FlowTemplate = {
   trigger_type: "keyword",
   trigger_config: {
     keywords: ["hi", "hello", "hey", "menu", "help", "options"],
-    match_type: "word",
+    match_type: "contains",
   },
   entry_node_id: "start",
   nodes: REALTORONE_MENU_NODES,
