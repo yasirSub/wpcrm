@@ -827,13 +827,12 @@ async function processMessage(
   // message — see the comment block above.
   if (!flowConsumed) {
     automationTriggers.push('new_message_received', 'keyword_match')
-    // Interactive tap → fire the interactive_reply trigger too (only
-    // meaningful when a button/list reply actually arrived). Enables
-    // automation-only chained menus; when a Flow owns the menu it will
-    // have consumed the reply and this is skipped.
-    if (interactiveReplyId) {
-      automationTriggers.push('interactive_reply')
-    }
+  }
+  // Interactive taps still need automations even when a Flow consumed
+  // the reply (e.g. menu → end), so Laravel can send live account /
+  // pricing from the app database for `ro_*` list rows.
+  if (interactiveReplyId) {
+    automationTriggers.push('interactive_reply')
   }
   // new_contact_created fires only when the webhook just auto-created the
   // contact row. first_inbound_message fires whenever this is the contact's

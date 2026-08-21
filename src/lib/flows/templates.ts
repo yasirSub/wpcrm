@@ -301,9 +301,9 @@ const REALTORONE_MENU_NODES: FlowTemplate["nodes"] = [
     node_key: "menu",
     node_type: "send_list",
     config: {
-      text: "Welcome to Realtor One. How can we help?",
+      text: "Welcome to Realtor One. Pick an option — live account & pricing come from the app.",
       button_label: "View options",
-      footer_text: "Or reply: pricing · account · menu",
+      footer_text: "Or type: pricing · account · menu",
       sections: [
         {
           title: "Explore",
@@ -311,20 +311,38 @@ const REALTORONE_MENU_NODES: FlowTemplate["nodes"] = [
             {
               reply_id: "ro_plans",
               title: "Plans & pricing",
-              description: "AED plans and subscribe link",
-              next_node_key: "plans",
+              description: "Live AED plans from the app",
+              next_node_key: "end",
             },
             {
               reply_id: "ro_included",
               title: "What's included",
-              description: "Scripts, CRM, labs, habits",
-              next_node_key: "included",
+              description: "Mindset, scripts, labs, habits",
+              next_node_key: "end",
             },
             {
-              reply_id: "ro_account_hint",
+              reply_id: "ro_account",
               title: "My account",
-              description: "Days left / subscription status",
-              next_node_key: "account_hint",
+              description: "Plan, status & days left",
+              next_node_key: "end",
+            },
+            {
+              reply_id: "ro_scripts",
+              title: "Scripts",
+              description: "Objections, cold call, silent buyer",
+              next_node_key: "end",
+            },
+            {
+              reply_id: "ro_crm",
+              title: "Pipeline / CRM",
+              description: "Who to chase & follow-ups",
+              next_node_key: "end",
+            },
+            {
+              reply_id: "ro_subscribe",
+              title: "Subscribe / upgrade",
+              description: "App checkout link",
+              next_node_key: "end",
             },
             {
               reply_id: "ro_human",
@@ -332,43 +350,29 @@ const REALTORONE_MENU_NODES: FlowTemplate["nodes"] = [
               description: "Message our team",
               next_node_key: "human",
             },
+            {
+              reply_id: "ro_problem",
+              title: "Report a problem",
+              description: "Bugs, billing, login issues",
+              next_node_key: "problem",
+            },
           ],
         },
       ],
     } as SendListNodeConfig,
   },
   {
-    node_key: "plans",
-    node_type: "send_message",
-    config: {
-      text:
-        "Realtor One plans (AED):\n\n• Rainmaker — monthly coaching OS for serious agents\n• Titan — higher tier with more live labs access\n\nReply *pricing* for live AED amounts from our app, or open https://aanantbishthealing.com to subscribe.\n\nReply *menu* anytime.",
-      next_node_key: "end",
-    } as SendMessageNodeConfig,
-  },
-  {
-    node_key: "included",
-    node_type: "send_message",
-    config: {
-      text:
-        "What's inside Realtor One:\n\n• Daily mindset + habits (streaks, focus)\n• Pipeline / CRM prompts\n• Copy-paste scripts for silent buyers & objections\n• Live labs + skill training\n• One system instead of scattered tools\n\nReply *pricing* for plans, or *account* for your status.",
-      next_node_key: "end",
-    } as SendMessageNodeConfig,
-  },
-  {
-    node_key: "account_hint",
-    node_type: "send_message",
-    config: {
-      text:
-        "To see your plan and days left, reply with the word *account* (must be the WhatsApp number linked to your Realtor One app).\n\nReply *pricing* for plans.",
-      next_node_key: "end",
-    } as SendMessageNodeConfig,
-  },
-  {
     node_key: "human",
     node_type: "handoff",
     config: {
-      note: "Customer asked to talk to a human from Realtor One Assistant.",
+      note: "Customer asked to talk to a human from Realtor One menu.",
+    } as HandoffNodeConfig,
+  },
+  {
+    node_key: "problem",
+    node_type: "handoff",
+    config: {
+      note: "Customer reported a problem (bug / billing / login) from Realtor One menu.",
     } as HandoffNodeConfig,
   },
   {
