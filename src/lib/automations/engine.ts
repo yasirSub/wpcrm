@@ -42,6 +42,12 @@ export interface AutomationContext {
   agent_id?: string
   /** Button / list-row id the customer tapped, for interactive_reply. */
   interactive_reply_id?: string
+  /** Contact phone (E.164-ish) — enriched for send_webhook bots. */
+  contact_phone?: string
+  contact_id?: string
+  contact_name?: string
+  /** Optional intent hint for external product bots. */
+  intent?: string
 }
 
 export interface DispatchInput {
@@ -594,7 +600,32 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
       if (!(await isDeliverableUrl(cfg.url))) {
         throw new Error('send_webhook: destination not allowed')
       }
-      const body = cfg.body_template ? interpolate(cfg.body_template, args) : JSON.stringify(args.context)
+      // Enrich context with contact phone so external bots (e.g. RealtorOne
+      // Laravel product bot) can reply without a second lookup round-trip.
+      let enrichedContext: AutomationContext = { ...(args.context ?? {}) }
+      if (args.contactId && !enrichedContext.contact_phone) {
+        const { data: contact } = await db
+          .from('contacts')
+          .select('id, phone, name')
+          .eq('id', args.contactId)
+          .maybeSingle()
+        if (contact?.phone) {
+          enrichedContext = {
+            ...enrichedContext,
+            contact_id: contact.id,
+            contact_phone: contact.phone,
+            contact_name: contact.name ?? undefined,
+          }
+        }
+      }
+      const interpolateArgs = { ...args, context: enrichedContext }
+      const body = cfg.body_template
+        ? interpolate(cfg.body_template, interpolateArgs)
+        : JSON.stringify({
+            ...enrichedContext,
+            contact_id: args.contactId,
+            intent: enrichedContext.intent,
+          })
       const res = await fetch(cfg.url, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...(cfg.headers ?? {}) },
@@ -795,6 +826,8 @@ function interpolate(s: string, args: ExecuteArgs): string {
     const [ns, prop] = String(key).split('.')
     if (ns === 'message' && prop === 'text') return String(args.context.message_text ?? '')
     if (ns === 'vars' && prop) return String(args.context.vars?.[prop] ?? '')
+    if (ns === 'contact' && prop === 'phone') return String(args.context.contact_phone ?? '')
+    if (ns === 'contact' && prop === 'name') return String(args.context.contact_name ?? '')
     return ''
   })
 }
