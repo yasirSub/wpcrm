@@ -18,6 +18,8 @@ interface DispatchArgs {
   /** The account's WhatsApp config owner, used for the outbound send's
    *  audit columns (mirrors how the flow runner passes it through). */
   configOwnerUserId: string
+  /** Latest inbound text — used to see if a keyword automation will answer. */
+  messageText?: string
 }
 
 /**
@@ -42,7 +44,7 @@ interface DispatchArgs {
 export async function dispatchInboundToAiReply(
   args: DispatchArgs,
 ): Promise<void> {
-  const { accountId, conversationId, contactId, configOwnerUserId } = args
+  const { accountId, conversationId, contactId, configOwnerUserId, messageText } = args
 
   try {
     const db = supabaseAdmin()
@@ -50,22 +52,33 @@ export async function dispatchInboundToAiReply(
     const config = await loadAiConfig(db, accountId)
     if (!config || !config.autoReplyEnabled) return
 
-    // Deterministic, user-configured responders win over the LLM — the
-    // caller already excludes messages a Flow consumed. Message-level
-    // automations (`new_message_received` / `keyword_match`) are
-    // dispatched independently for this same inbound and may send their
-    // own reply, so if the account has any active one we stand down to
-    // avoid double-texting the customer. (Relationship triggers like
-    // `first_inbound_message` don't count — they're not per-message
-    // auto-responders.)
-    const { data: autoResponders } = await db
+    // Deterministic keyword automations that MATCH this inbound win over
+    // the LLM (e.g. live "account" / days-left webhook). We only stand
+    // down when a keyword_match would fire for this text — having any
+    // keyword automation on the account must NOT disable AI for "hi" or
+    // product questions. Out-of-office (`new_message_received`) is also
+    // ignored here so daytime AI can run; OOO still fires on its own.
+    const { data: keywordAutos } = await db
       .from('automations')
-      .select('id')
+      .select('id, trigger_type, trigger_config')
       .eq('account_id', accountId)
       .eq('is_active', true)
-      .in('trigger_type', ['new_message_received', 'keyword_match'])
-      .limit(1)
-    if (autoResponders && autoResponders.length > 0) return
+      .eq('trigger_type', 'keyword_match')
+    if (keywordAutos && keywordAutos.length > 0) {
+      const { triggerMatches } = await import('@/lib/automations/engine')
+      const ctx = { message_text: messageText ?? '' }
+      const wouldReply = keywordAutos.some((row) =>
+        triggerMatches(
+          {
+            id: row.id,
+            trigger_type: 'keyword_match',
+            trigger_config: (row.trigger_config ?? {}) as Record<string, unknown>,
+          } as Parameters<typeof triggerMatches>[0],
+          ctx,
+        ),
+      )
+      if (wouldReply) return
+    }
 
     const { data: conv, error: convErr } = await db
       .from('conversations')

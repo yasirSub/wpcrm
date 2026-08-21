@@ -8,9 +8,10 @@ const h = vi.hoisted(() => ({
   retrieveKnowledge: vi.fn(),
   generateReply: vi.fn(),
   engineSendText: vi.fn(),
+  triggerMatches: vi.fn(),
   state: {
     conv: null as Record<string, unknown> | null,
-    autoResponders: [] as { id: string }[],
+    keywordAutos: [] as { id: string; trigger_type: string; trigger_config: Record<string, unknown> }[],
     claim: true as boolean,
     updatePayload: null as Record<string, unknown> | null,
     rpcCalls: [] as { name: string; args: unknown }[],
@@ -22,17 +23,17 @@ vi.mock('./context', () => ({ buildConversationContext: h.buildConversationConte
 vi.mock('./knowledge', () => ({ retrieveKnowledge: h.retrieveKnowledge }))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
 vi.mock('@/lib/flows/meta-send', () => ({ engineSendText: h.engineSendText }))
+vi.mock('@/lib/automations/engine', () => ({ triggerMatches: h.triggerMatches }))
 vi.mock('./admin-client', () => ({
   supabaseAdmin: () => ({
     from: (table: string) => {
       if (table === 'automations') {
-        // .select().eq().eq().in().limit() → active auto-responders
+        // .select().eq().eq().eq() → active keyword automations
         const chain = {
           select: () => chain,
           eq: () => chain,
-          in: () => chain,
-          limit: () =>
-            Promise.resolve({ data: h.state.autoResponders, error: null }),
+          then: (resolve: (v: unknown) => unknown) =>
+            Promise.resolve({ data: h.state.keywordAutos, error: null }).then(resolve),
         }
         return chain
       }
@@ -64,6 +65,7 @@ const ARGS = {
   conversationId: 'conv-1',
   contactId: 'contact-1',
   configOwnerUserId: 'user-1',
+  messageText: 'hi',
 }
 
 function aiConfig(overrides: Partial<AiConfig> = {}): AiConfig {
@@ -88,10 +90,11 @@ beforeEach(() => {
     ai_autoreply_disabled: false,
     ai_reply_count: 0,
   }
-  h.state.autoResponders = []
+  h.state.keywordAutos = []
   h.state.claim = true
   h.state.updatePayload = null
   h.state.rpcCalls = []
+  h.triggerMatches.mockReturnValue(false)
   h.loadAiConfig.mockResolvedValue(aiConfig())
   h.buildConversationContext.mockResolvedValue([{ role: 'user', content: 'hi' }])
   h.retrieveKnowledge.mockResolvedValue([])
@@ -121,11 +124,31 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
     expect(systemPrompt).toContain('Returns accepted within 30 days.')
   })
 
-  it('stands down when an active message-level automation exists', async () => {
-    h.state.autoResponders = [{ id: 'auto-1' }]
-    await dispatchInboundToAiReply(ARGS)
+  it('stands down when a keyword automation matches this inbound', async () => {
+    h.state.keywordAutos = [
+      {
+        id: 'auto-1',
+        trigger_type: 'keyword_match',
+        trigger_config: { keywords: ['account'], match_type: 'contains' },
+      },
+    ]
+    h.triggerMatches.mockReturnValue(true)
+    await dispatchInboundToAiReply({ ...ARGS, messageText: 'account status' })
     expect(h.generateReply).not.toHaveBeenCalled()
     expect(h.engineSendText).not.toHaveBeenCalled()
+  })
+
+  it('still replies when keyword automations exist but do not match', async () => {
+    h.state.keywordAutos = [
+      {
+        id: 'auto-1',
+        trigger_type: 'keyword_match',
+        trigger_config: { keywords: ['account'], match_type: 'contains' },
+      },
+    ]
+    h.triggerMatches.mockReturnValue(false)
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.engineSendText).toHaveBeenCalled()
   })
 
   it('does not send when the atomic slot claim loses the race', async () => {
