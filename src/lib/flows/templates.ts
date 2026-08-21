@@ -400,7 +400,7 @@ const REALTORONE_MENU: FlowTemplate = {
   name: "Realtor One Menu",
   description:
     "Interactive WhatsApp list menu when someone says hi, menu, or help (returning contacts).",
-  icon: "List",
+  icon: "MessageSquare",
   trigger_type: "keyword",
   trigger_config: {
     keywords: ["hi", "hello", "hey", "menu", "help", "options"],
