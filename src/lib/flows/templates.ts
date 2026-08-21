@@ -288,6 +288,96 @@ const LEAD_CAPTURE: FlowTemplate = {
 // ============================================================
 // 4. Realtor One Assistant — product menu for the main app
 // ============================================================
+// ============================================================
+// 4. Realtor One — shared menu nodes (first inbound + keyword menu)
+// ============================================================
+const REALTORONE_MENU_NODES: FlowTemplate["nodes"] = [
+  {
+    node_key: "start",
+    node_type: "start",
+    config: { next_node_key: "menu" },
+  },
+  {
+    node_key: "menu",
+    node_type: "send_list",
+    config: {
+      text: "Welcome to Realtor One. How can we help?",
+      button_label: "View options",
+      footer_text: "Or reply: pricing · account · menu",
+      sections: [
+        {
+          title: "Explore",
+          rows: [
+            {
+              reply_id: "ro_plans",
+              title: "Plans & pricing",
+              description: "AED plans and subscribe link",
+              next_node_key: "plans",
+            },
+            {
+              reply_id: "ro_included",
+              title: "What's included",
+              description: "Scripts, CRM, labs, habits",
+              next_node_key: "included",
+            },
+            {
+              reply_id: "ro_account_hint",
+              title: "My account",
+              description: "Days left / subscription status",
+              next_node_key: "account_hint",
+            },
+            {
+              reply_id: "ro_human",
+              title: "Talk to human",
+              description: "Message our team",
+              next_node_key: "human",
+            },
+          ],
+        },
+      ],
+    } as SendListNodeConfig,
+  },
+  {
+    node_key: "plans",
+    node_type: "send_message",
+    config: {
+      text:
+        "Realtor One plans (AED):\n\n• Rainmaker — monthly coaching OS for serious agents\n• Titan — higher tier with more live labs access\n\nReply *pricing* for live AED amounts from our app, or open https://aanantbishthealing.com to subscribe.\n\nReply *menu* anytime.",
+      next_node_key: "end",
+    } as SendMessageNodeConfig,
+  },
+  {
+    node_key: "included",
+    node_type: "send_message",
+    config: {
+      text:
+        "What's inside Realtor One:\n\n• Daily mindset + habits (streaks, focus)\n• Pipeline / CRM prompts\n• Copy-paste scripts for silent buyers & objections\n• Live labs + skill training\n• One system instead of scattered tools\n\nReply *pricing* for plans, or *account* for your status.",
+      next_node_key: "end",
+    } as SendMessageNodeConfig,
+  },
+  {
+    node_key: "account_hint",
+    node_type: "send_message",
+    config: {
+      text:
+        "To see your plan and days left, reply with the word *account* (must be the WhatsApp number linked to your Realtor One app).\n\nReply *pricing* for plans.",
+      next_node_key: "end",
+    } as SendMessageNodeConfig,
+  },
+  {
+    node_key: "human",
+    node_type: "handoff",
+    config: {
+      note: "Customer asked to talk to a human from Realtor One Assistant.",
+    } as HandoffNodeConfig,
+  },
+  {
+    node_key: "end",
+    node_type: "end",
+    config: {},
+  },
+];
+
 const REALTORONE_ASSISTANT: FlowTemplate = {
   slug: "realtorone_assistant",
   name: "Realtor One Assistant",
@@ -297,92 +387,23 @@ const REALTORONE_ASSISTANT: FlowTemplate = {
   trigger_type: "first_inbound_message",
   trigger_config: {},
   entry_node_id: "start",
-  nodes: [
-    {
-      node_key: "start",
-      node_type: "start",
-      config: { next_node_key: "menu" },
-    },
-    {
-      node_key: "menu",
-      node_type: "send_list",
-      config: {
-        text: "Welcome to Realtor One. How can we help?",
-        button_label: "View options",
-        footer_text: "Or reply: pricing · account · menu",
-        sections: [
-          {
-            title: "Explore",
-            rows: [
-              {
-                reply_id: "ro_plans",
-                title: "Plans & pricing",
-                description: "AED plans and subscribe link",
-                next_node_key: "plans",
-              },
-              {
-                reply_id: "ro_included",
-                title: "What's included",
-                description: "Scripts, CRM, labs, habits",
-                next_node_key: "included",
-              },
-              {
-                reply_id: "ro_account_hint",
-                title: "My account",
-                description: "Days left / subscription status",
-                next_node_key: "account_hint",
-              },
-              {
-                reply_id: "ro_human",
-                title: "Talk to human",
-                description: "Message our team",
-                next_node_key: "human",
-              },
-            ],
-          },
-        ],
-      } as SendListNodeConfig,
-    },
-    {
-      node_key: "plans",
-      node_type: "send_message",
-      config: {
-        text:
-          "Realtor One plans (AED):\n\n• Rainmaker — monthly coaching OS for serious agents\n• Titan — higher tier with more live labs access\n\nReply *pricing* for live AED amounts from our app, or open https://aanantbishthealing.com to subscribe.\n\nReply *menu* anytime.",
-        next_node_key: "end",
-      } as SendMessageNodeConfig,
-    },
-    {
-      node_key: "included",
-      node_type: "send_message",
-      config: {
-        text:
-          "What's inside Realtor One:\n\n• Daily mindset + habits (streaks, focus)\n• Pipeline / CRM prompts\n• Copy-paste scripts for silent buyers & objections\n• Live labs + skill training\n• One system instead of scattered tools\n\nReply *pricing* for plans, or *account* for your status.",
-        next_node_key: "end",
-      } as SendMessageNodeConfig,
-    },
-    {
-      node_key: "account_hint",
-      node_type: "send_message",
-      config: {
-        text:
-          "To see your plan and days left, reply with the word *account* (must be the WhatsApp number linked to your Realtor One app).\n\nReply *pricing* for plans.",
-        next_node_key: "end",
-      } as SendMessageNodeConfig,
-    },
-    {
-      node_key: "human",
-      node_type: "handoff",
-      config: {
-        note: "Customer asked to talk to a human from Realtor One Assistant.",
-      } as HandoffNodeConfig,
-    },
-    {
-      node_key: "end",
-      node_type: "end",
-      config: {},
-    },
-  ],
+  nodes: REALTORONE_MENU_NODES,
+};
+
+/** Same tap-menu for returning chats that say hi / menu / help. */
+const REALTORONE_MENU: FlowTemplate = {
+  slug: "realtorone_menu",
+  name: "Realtor One Menu",
+  description:
+    "Interactive WhatsApp list menu when someone says hi, menu, or help (returning contacts).",
+  icon: "List",
+  trigger_type: "keyword",
+  trigger_config: {
+    keywords: ["hi", "hello", "hey", "menu", "help", "options"],
+    match_type: "word",
+  },
+  entry_node_id: "start",
+  nodes: REALTORONE_MENU_NODES,
 };
 
 // ============================================================
@@ -394,6 +415,7 @@ const TEMPLATES: Record<string, FlowTemplate> = {
   faq_bot: FAQ_BOT,
   lead_capture: LEAD_CAPTURE,
   realtorone_assistant: REALTORONE_ASSISTANT,
+  realtorone_menu: REALTORONE_MENU,
 };
 
 export function getFlowTemplate(slug: string): FlowTemplate | null {
