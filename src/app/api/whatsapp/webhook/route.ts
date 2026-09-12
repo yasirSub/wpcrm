@@ -91,6 +91,12 @@ interface WhatsAppWebhookEntry {
         status: string
         timestamp: string
         recipient_id: string
+        errors?: Array<{
+          code: number
+          title: string
+          message?: string
+          error_data?: { details?: string }
+        }>
       }>
     }
     field: string
@@ -369,7 +375,33 @@ async function handleStatusUpdate(status: {
   status: string
   timestamp: string
   recipient_id: string
+  errors?: Array<{
+    code: number
+    title: string
+    message?: string
+    error_data?: { details?: string }
+  }>
 }) {
+  if (status.status === 'failed' && status.errors?.length) {
+    const detail = status.errors
+      .map((e) => `#${e.code} ${e.title}${e.error_data?.details ? ` (${e.error_data.details})` : ''}`)
+      .join('; ')
+    console.error(
+      '[webhook] Meta delivery failed:',
+      status.id,
+      'recipient',
+      status.recipient_id,
+      detail,
+    )
+  }
+
+  const failureDetail =
+    status.status === 'failed' && status.errors?.length
+      ? status.errors
+          .map((e) => `#${e.code} ${e.title}`)
+          .join('; ')
+      : null
+
   // 1) Mirror onto messages (legacy behavior) — Meta's status values
   //    already match the CHECK constraint on messages.status. No
   //    `.select()`: message_id is NOT unique (migration 009 — Meta ids
@@ -412,6 +444,7 @@ async function handleStatusUpdate(status: {
     if (status.status === 'sent' && !('sent_at' in update)) update.sent_at = tsIso
     if (status.status === 'delivered') update.delivered_at = tsIso
     if (status.status === 'read') update.read_at = tsIso
+    if (failureDetail) update.error_message = failureDetail
 
     const { error: recUpdateErr } = await supabaseAdmin()
       .from('broadcast_recipients')
